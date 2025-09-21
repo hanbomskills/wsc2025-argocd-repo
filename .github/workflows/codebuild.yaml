@@ -1,0 +1,41 @@
+name: wsc2025-argocd
+permissions:
+  contents: write
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ "index.html" ]
+jobs:
+  codebuild:
+    runs-on:
+      - codebuild-project8313-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: ECR Login
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Docker Build adn Push
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: app-repo
+        run: |
+          echo 'FROM nginx:latest
+          COPY index.html /usr/share/nginx/html/index.html
+          CMD ["nginx", "-g", "daemon off;"]' > Dockerfile
+          IMAGE_TAG=$(cat version)
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          echo "IMAGE=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+      - name: Deployment Update
+        id: update-deployment
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq -i '.spec.template.spec.containers[0].image = "${{ env.IMAGE }}"' ./manifest/deployment.yaml
+      - name: Git Commit and Push
+        run: |
+          git config --global user.email "abc@abc.com"
+          git config --global user.name "GitHubAction"
+          git add ./manifest
+          git commit -m "Update Deployment Image"
+          git push
