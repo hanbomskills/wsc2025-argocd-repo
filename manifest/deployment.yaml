@@ -16,4 +16,4 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: 637423279607.dkr.ecr.ap-southeast-1.amazonaws.com/app-repo:v1.0.0
+          image: 637423279607.dkr.ecr.ap-southeast-1.amazonaws.com/app-repo:v1.0.1
